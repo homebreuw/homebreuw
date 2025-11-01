@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { open } from '@tauri-apps/plugin-dialog';
 //import { download } from '@tauri-apps/plugin-upload';
 import { resolve } from "@tauri-apps/api/path";
