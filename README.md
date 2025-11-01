@@ -1,7 +1,19 @@
-# Tauri + React + Typescript
+# Home Breuw
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+# WARNING! THIS PROJECT IS STILL **VERY** WIP, AND MANY THINGS WILL BE BROKEN. PLEASE DONT REPORT ISSUES BEFORE THE TOOL IS UP ON GAMEBANANA! Thanks!
 
-## Recommended IDE Setup
+Hi! If you are reading this then you are probably a dev. If not, please go to the GameBanana pa(i)ge for Home Breuw for better user info.
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+## development
+you need all the prerequisites listed [here](https://tauri.app/start/prerequisites/) and **bun** (recommended, though if you want to use node or deno go for it).
+
+to install packages run;
+```
+bun i
+```
+and to run the app;
+```
+bun run tauri dev
+```
+
+issues (and pull requests if you really want) are "allowed" :D (as if they ever weren't allowed).
