@@ -1,0 +1,63 @@
+@layer theme, base, components;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css";
+
+:root {
+    color-scheme: dark;
+    color: var(--color-white)
+}
+
+@theme {
+    --color-black: #0e0e0e;
+    --font-pixel: "Pixelated MS Sans Serif", Arial;
+    --font-sans: "Microsoft Sans Serif", Arial;
+    --font-comic-sans: "Comic Sans MS", sans-serif;
+}
+
+pre {
+    all: unset;
+}
+
+button, input {
+    color-scheme: light;
+}
+
+menu[role=tablist] button[role=tab] {
+    background: linear-gradient(180deg,#000,#050506 26%,#0f0f15 95%,#13141a);
+    color: #dddddd;
+    border-color: #6e584b;
+}
+
+menu[role=tablist] button[aria-selected=true] {
+    background: #030301;
+    border-color: #6e6463;
+    border-bottom: 1px solid transparent;
+}
+
+[role=tabpanel] {
+    background: linear-gradient(180deg,#030301,#0b0c11);
+    box-shadow: inset 1px 1px #030301,inset -1px -1px #030301,1px 2px 2px 0 rgba(47, 49, 64, 0.75);
+    border: 1px solid #6e6463;
+}
+
+.topbord {
+    box-shadow: inset 0 1px 0px grey;
+}
+
+.window-body {
+    font-family: "Pixelated MS Sans Serif", Arial;
+    -webkit-font-smoothing: antialiased;
+}
+
+@layer base {
+    *,::after,::before,::backdrop,::file-selector-button {
+        margin: 0; padding: 0;
+        -webkit-user-select: none; /* Safari */
+        -moz-user-select: none;    /* Firefox */
+        -ms-user-select: none;     /* IE 10+ */
+        user-select: none;
+    };
+    ol,ul,menu { list-style: none; };
+    h1,h2,h3,h4,h5,h6 { font-size: inherit; }
+}
