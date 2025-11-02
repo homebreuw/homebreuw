@@ -1,6 +1,6 @@
 import { createRoot } from 'react-dom/client'
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import "XP.css/dist/XP.css"
+import "xp.css/dist/XP.css"
 import './index.css'
 
 import App from './App.tsx'
