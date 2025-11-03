@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { open } from '@tauri-apps/plugin-dialog';
-//import { download } from '@tauri-apps/plugin-upload';
+import { download } from '@tauri-apps/plugin-upload';
 import { homeDir, resolve } from "@tauri-apps/api/path";
 import { exists, readTextFile } from "@tauri-apps/plugin-fs";
 import { fetch } from "@tauri-apps/plugin-http";
@@ -95,7 +95,9 @@ export default function App() {
 
         const file = await open({
             title: "Select game folder",
-            defaultPath: "C:\Program Files (x86)\Steam\steamapps\common\Home Paige Demo",
+            defaultPath: platform() === 'linux' 
+                ? await resolve(await homeDir(), ".steam/steam/steamapps/common", "Home Paige Demo") 
+                : "C:\Program Files (x86)\Steam\steamapps\common\Home Paige Demo",
             multiple: false,
             directory: true,
         });
@@ -155,13 +157,9 @@ export default function App() {
     useEffect(() => {
         async function getSteamDir() {
             // find steam dir
-            let steamDir;
-            const lePlatform = platform();
-            if (lePlatform === 'linux') {
-                steamDir = await resolve(await homeDir(), ".steam/steam/steamapps/common", "Home Paige Demo")
-            } else {
-                steamDir = await resolve("C:/Program Files (x86)", "Steam/steamapps/common", "Home Paige Demo")
-            }
+            const steamDir = platform() === 'linux' 
+                ? await resolve(await homeDir(), ".steam/steam/steamapps/common", "Home Paige Demo")
+                : await resolve("C:/Program Files (x86)", "Steam/steamapps/common", "Home Paige Demo")
             const binDir = await resolve(steamDir, 'internetPlatformer', 'Binaries', 'Win64');
             const gameExists = await exists(await resolve(binDir, 'internetPlatformer-Win64-Shipping.exe'));
             if (!gameExists) {
