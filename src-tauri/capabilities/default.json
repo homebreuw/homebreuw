@@ -40,6 +40,7 @@
         }
       ]
     },
-    "deep-link:default"
+    "deep-link:default",
+    "os:default"
   ]
 }
