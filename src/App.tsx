@@ -13,82 +13,67 @@ export default function App() {
     const [currentState, setCurrentState] = useState(defaultState);
     const [appPath, setAppPath] = useState<string>("");
     const [oldMods, setOldMods] = useState<string[]>([]);
+    const [modsList, setModsList] = useState<any[]>([]);
     const [ue4ssStatus, setUe4ssStatus] = useState(false);
 
     const tabButton1Ref = useRef<HTMLButtonElement>(null);
     const tabButton2Ref = useRef<HTMLButtonElement>(null);
     const tab1Ref = useRef<HTMLElement>(null);
     const tab2Ref = useRef<HTMLElement>(null);
-    let modsListArray: any[] = [];
 
     useEffect(() => {
-        async function listenForDeeplink() {
-            await onOpenUrl(async (urls) => {
-                setCurrentState("Getting mod information...")
-                const parts = urls[0].replace(/^(homebreuw:(\/\/)?)/, "").split(",");
+        async function appendModsList(urls: string[]) {
+            setCurrentState("Getting mod information...")
+            const parts = urls[0].replace(/^(homebreuw:(\/\/)?)/, "").split(",");
 
-                if (parts[0] === "file") {
-                    try {
-                        modsListArray.push({ id: parts[2], name: parts[3], authors: "DEV MOD", downloadLink: `file://${parts[1]}`, enabled: true})
-                        setCurrentState(defaultState);
-                    } catch {
-                        setCurrentState("Invalid dev mod format");
-                    }
-                } else {
-                    try {
-                        const resp = await fetch(`https://api.gamebanana.com/Core/Item/Data?itemtype=${parts[1]}&itemid=${parts[2]}&fields=name,authors`);
-                        const modData = await resp.json();
+            console.log(parts[2])
+            console.log(modsList);
+            if (modsList.some(x => x.id === parts[2])) {
+                console.log(modsList.find(x => x.id === parts[2]))
+                setCurrentState("Mod already added to the list!")
+                return;
+            }
 
-                        const keyAuthorsArray: any[] = [];
-                        
-                        JSON.parse(modData[1])["Key Authors"].forEach((e: any) => {
-                            keyAuthorsArray.push(e[0]);
-                        });
-
-                        modsListArray.push({ id: parts[2], name: modData[0], authors: keyAuthorsArray.join(", "), downloadLink: parts[0], enabled: true})
-                        
-                        setCurrentState(defaultState);
-                    } catch {
-                        setCurrentState("Error getting mod information.")
-                    }
+            if (parts[0] === "file") {
+                try {
+                    const newMod = { id: parts[2], name: parts[3], authors: "DEV MOD", downloadLink: `file://${parts[1]}`, enabled: true };
+                    setModsList(prev => [...prev, newMod]);
+                    console.log('added mod', newMod);
+                    setCurrentState(defaultState);
+                } catch {
+                    setCurrentState("Invalid dev mod format");
                 }
-            });
+            } else {
+                try {
+                    const resp = await fetch(`https://api.gamebanana.com/Core/Item/Data?itemtype=${parts[1]}&itemid=${parts[2]}&fields=name,authors`);
+                    const modData = await resp.json();
+
+                    const keyAuthorsArray: any[] = [];
+                    JSON.parse(modData[1])["Key Authors"].forEach((e: any) => {
+                        keyAuthorsArray.push(e[0]);
+                    });
+
+                    const newMod = { id: parts[2], name: modData[0], authors: keyAuthorsArray.join(", "), downloadLink: parts[0], enabled: true };
+                    setModsList(prev => [...prev, newMod]);
+                    console.log('added mod', newMod);
+                    setCurrentState(defaultState)
+                } catch {
+                    setCurrentState("Error getting mod information.")
+                }
+            }
         }
 
-        listenForDeeplink()
-
-        /*async function getModsList(paigeIndex = 1) {
-            try {
-                setCurrentState("Getting list of mods...")
-                const gamebananaPaige = 23645;
-                const response = await fetch(`https://gamebanana.com/apiv11/Mod/Index?_nPerpage=50&_aFilters[Generic_Game]=${gamebananaPaige}&_nPage=${paigeIndex}`);
-                const modsJson = await response.json();
-                if (modsJson["_aMetadata"]["_nRecordCount"] >= modsJson["_aMetadata"]["_nPerpage"]) {
-                    const paigeAmount = Math.ceil(modsJson["_aMetadata"]["_nRecordCount"] / modsJson["_aMetadata"]["_nPerpage"]);
-                    if (paigeIndex < paigeAmount) {
-                        modsJson["_aRecords"].forEach((e: any) => {
-                            modsListArray.push(e);
-                        });
-                        console.log(modsListArray)
-                        getModsList(paigeIndex + 1);
-                        return;
-                    }
-                }
-
-                if (paigeIndex <= 1) {
-                    setModsList(modsJson["_aRecords"]);
-                    setCurrentState(defaultState);
-                } else {
-                    setModsList(modsListArray);
-                    setCurrentState(defaultState);
-                }
-            } catch (err) {
-                setCurrentState(err as string)
-            }
+        let unsubscribe: (() => void) | undefined;
+        async function listenForDeeplink() {
+            unsubscribe = await onOpenUrl(appendModsList);
+        }
+        
+        listenForDeeplink();
+        
+        return () => {
+            unsubscribe?.();
         };
-
-        getModsList();*/
-    }, [])
+    }, [modsList])
 
     async function handleBrowse() {
         setCurrentState('Selecting game folder')
@@ -120,14 +105,16 @@ export default function App() {
             const gameExists = await exists(await resolve(binDir, 'internetPlatformer-Win64-Shipping.exe'));
             if (!gameExists) {
                 setCurrentState("Error! No game found in selected directory. Did you select the right path?");
+                setUe4ssStatus(false);
                 setOldMods([]);
                 return;
             }
+            const ue4ssFolder = await exists(await resolve(binDir, 'ue4ss'))
+                
+            setUe4ssStatus(ue4ssFolder);
             try {
                 const contents = await readTextFile(await resolve(binDir, 'HomeBreuw', "mods.json"));
-                const ue4ssFolder = await exists(await resolve(binDir, 'ue4ss'))
                 
-                setUe4ssStatus(ue4ssFolder);
                 setCurrentState(binDir);
                 const oldModsList: string[] = [];
                 JSON.parse(contents).forEach((e: any) => {
@@ -138,7 +125,6 @@ export default function App() {
                 setCurrentState(defaultState);
             } catch {
                 setCurrentState(defaultState);
-                setUe4ssStatus(false);
                 setOldMods([]);
             }
             return;
@@ -192,6 +178,7 @@ export default function App() {
                                 tabButton1Ref.current!.ariaSelected = "false"; 
                                 tab1Ref.current!.hidden = true;
                                 tab2Ref.current!.hidden = false;
+                                openUrl("https://gamebanana.com/games/23645")
                             }}>Mod listings</button>
                         </menu>
                         <article role="tabpanel" id="tab-A" ref={tab1Ref}>
@@ -230,7 +217,7 @@ export default function App() {
                                         </tbody>
                                     </table>
                                 <p className="ml-4">Selectable mods:</p>
-                                {(modsListArray && modsListArray.length > 0) ? (<table className="ml-8">
+                                {(modsList && modsList.length > 0) ? (<table className="ml-8">
                                     <thead>
                                         <tr>
                                             <th className="text-left">Name</th>
@@ -240,12 +227,18 @@ export default function App() {
                                     </thead>
                                     <tbody>
                                         <tr className="h-1"></tr>
-                                        {modsListArray.map((data, index) => (
+                                        {modsList.map((data, index) => (
                                             <tr key={index} className="text-center">
                                                 <td className="text-left">
-                                                    <input type="checkbox" id={index.toString()} defaultChecked={data.enabled} onClick={(e) => {
-                                                        modsListArray[index].enabled = e.currentTarget.checked;
-                                                    }} />
+                                                    <input
+                                                        type="checkbox"
+                                                        id={index.toString()}
+                                                        checked={data.enabled}
+                                                        onChange={(e) => {
+                                                            const checked = e.currentTarget.checked;
+                                                            setModsList(prev => prev.map((item, i) => i === index ? { ...item, enabled: checked } : item));
+                                                        }}
+                                                    />
                                                     <label htmlFor={index.toString()}>{data.name}</label>
                                                 </td>
                                                 <td><label htmlFor={index.toString()}>{data.authors}</label></td>
