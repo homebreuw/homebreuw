@@ -28,6 +28,9 @@
     "fs": {
       "requireLiteralLeadingDot": false
     },
+    "upload": {
+      "requireLiteralLeadingDot": false
+    },
     "deep-link": {
       "desktop": {
         "schemes": ["homebreuw"]

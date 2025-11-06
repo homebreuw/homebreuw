@@ -15,6 +15,14 @@
     "core:window:allow-toggle-maximize",
     "dialog:default",
     "upload:default",
+    {
+      "identifier": "upload:allow-download",
+      "allow": [
+        {
+          "path": "**/*"
+        }
+      ]
+    },
     "fs:default",
     {
       "identifier": "fs:write-all",
@@ -37,6 +45,9 @@
       "allow": [
         {
           "url": "https://*.gamebanana.com:*"
+        },
+        {
+          "url": "https://api.github.com/repos/UE4SS-RE/RE-UE4SS/*"
         }
       ]
     },

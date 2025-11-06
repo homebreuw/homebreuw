@@ -1,20 +1,24 @@
 import { useEffect, useRef, useState } from "react";
-import { open } from '@tauri-apps/plugin-dialog';
+import { ask, open } from '@tauri-apps/plugin-dialog';
 import { download } from '@tauri-apps/plugin-upload';
-import { homeDir, resolve } from "@tauri-apps/api/path";
-import { exists, readTextFile } from "@tauri-apps/plugin-fs";
+import { homeDir, resolve, tempDir } from "@tauri-apps/api/path";
+import { exists, mkdir, readTextFile } from "@tauri-apps/plugin-fs";
 import { fetch } from "@tauri-apps/plugin-http";
 import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { platform } from '@tauri-apps/plugin-os';
+import { invoke } from "@tauri-apps/api/core";
 
 export default function App() {
     const defaultState = "Ready!";
     const [currentState, setCurrentState] = useState(defaultState);
+
     const [appPath, setAppPath] = useState<string>("");
     const [oldMods, setOldMods] = useState<string[]>([]);
     const [modsList, setModsList] = useState<any[]>([]);
     const [ue4ssStatus, setUe4ssStatus] = useState(false);
+    const [gameStatus, setGameStatus] = useState(false);
+    const [installDisabledStatus, setInstallDisabledStatus] = useState(false);
 
     const tabButton1Ref = useRef<HTMLButtonElement>(null);
     const tabButton2Ref = useRef<HTMLButtonElement>(null);
@@ -36,7 +40,7 @@ export default function App() {
 
             if (parts[0] === "file") {
                 try {
-                    const newMod = { id: parts[2], name: parts[3], authors: "DEV MOD", downloadLink: `file://${parts[1]}`, enabled: true };
+                    const newMod = { id: parts[2], name: decodeURIComponent(parts[3]), authors: "DEV MOD", downloadLink: `file://${parts[1]}`, enabled: true };
                     setModsList(prev => [...prev, newMod]);
                     console.log('added mod', newMod);
                     setCurrentState(defaultState);
@@ -96,6 +100,8 @@ export default function App() {
     async function getOldMods(file: string) {
         if (file === "") {
             setCurrentState(defaultState);
+            setGameStatus(false);
+            setUe4ssStatus(false);
             setOldMods([]);
             return;
         }
@@ -105,10 +111,12 @@ export default function App() {
             const gameExists = await exists(await resolve(binDir, 'internetPlatformer-Win64-Shipping.exe'));
             if (!gameExists) {
                 setCurrentState("Error! No game found in selected directory. Did you select the right path?");
+                setGameStatus(false);
                 setUe4ssStatus(false);
                 setOldMods([]);
                 return;
             }
+            setGameStatus(true);
             const ue4ssFolder = await exists(await resolve(binDir, 'ue4ss'))
                 
             setUe4ssStatus(ue4ssFolder);
@@ -137,12 +145,82 @@ export default function App() {
     }
 
     async function handleInstall() {
-        
+        setInstallDisabledStatus(true);
+        getOldMods(appPath);
+
+        try {
+            // UE4SS
+            const ue4ssInstallStatus = ue4ssStatus ? 
+                await ask('It seems like you have UE4SS (the modloader) already installed. Do you want to reinstall it?', {
+                    title: 'UE4SS Install popup',
+                    kind: 'info',
+                }) : true
+            if (ue4ssInstallStatus) {
+                setCurrentState("Installing UE4SS...")
+                const pathas = await resolve(appPath, 'internetPlatformer', 'Binaries', 'Win64')
+                if (!await exists(pathas)) {
+                    throw new Error("Game path not found. Error code: THISISAREALLYOBSCUREERRORANDTHISSHOULDNEVERHAPPEN")
+                }
+
+                // experimental release, hard coded, wip, please fix.
+                const resp = await fetch("https://api.github.com/repos/UE4SS-RE/RE-UE4SS/releases/192631774/assets");
+                const downloadUrl = (await resp.json())[0]["browser_download_url"]
+                const temporaryDirectory = await resolve(await tempDir(), 'ue4ss.zip')
+
+                await download(
+                    downloadUrl,
+                    temporaryDirectory,
+                    ({ progressTotal, total }) =>
+                        setCurrentState(`Downloaded ${Math.round(progressTotal / total) * 100}% of UE4SS`),
+                );
+
+                setCurrentState("Uncompressing UE4SS...")
+                await invoke('uncompress', {uncompressPath: temporaryDirectory, dest: pathas});
+                setCurrentState("UE4SS installed!")         
+            }
+
+            // mods
+            setCurrentState("Installing mods...");
+            modsList.forEach(async (mod) => {
+                if (mod.enabled) {
+                    setCurrentState(`Installing ${mod.name}...`)
+                    const temporaryDirectory = await resolve(await tempDir(), 'homebreuwmods', `${mod.id}.zip`)
+                    await mkdir(temporaryDirectory, { recursive: true })
+
+                    await download(
+                        mod.downloadLink,
+                        temporaryDirectory,
+                        ({ progressTotal, total }) =>
+                            setCurrentState(`Downloaded ${Math.round(progressTotal / total) * 100}% of ${mod.name}`),
+                    );
+
+                    setCurrentState("Uncompressing mod...")
+                    const pathas = await resolve(temporaryDirectory, mod.id)
+                    await mkdir(pathas)
+                    await invoke('uncompress', {uncompressPath: temporaryDirectory, dest: pathas});
+
+                    setCurrentState("Moving mod to mods directory...")
+                    const modInfo = JSON.parse(await readTextFile(await resolve(pathas, 'mod.json')));
+
+                    // WIP MOD TYPES
+                    setCurrentState(`${mod.name} installed!`)
+                }
+            });
+
+
+            setCurrentState(defaultState);
+        } catch (err) {
+            console.log(err);
+            setCurrentState(`Error! Error while installing mods: ${err}`)
+        }
+
+        setInstallDisabledStatus(false);
+        getOldMods(appPath);
     }
 
     useEffect(() => {
         async function getSteamDir() {
-            // find steam dir
+            // find  steam dir
             const steamDir = platform() === 'linux' 
                 ? await resolve(await homeDir(), ".steam/steam/steamapps/common", "Home Paige Demo")
                 : await resolve("C:/Program Files (x86)", "Steam/steamapps/common", "Home Paige Demo")
@@ -261,12 +339,14 @@ export default function App() {
                                 className="min-w-84"
                                 type="text"
                                 value={appPath}
+                                disabled={installDisabledStatus}
                                 onChange={(e) => {setAppPath(e.currentTarget.value); getOldMods(e.currentTarget.value)}}
                             />
-                            <button className="w-min" onClick={handleBrowse}>Browse</button>
+                            <button className="w-min" onClick={handleBrowse} disabled={installDisabledStatus}>Browse</button>
+                            <button className="w-min" onClick={() => { getOldMods(appPath) }} disabled={installDisabledStatus}>Reload</button>
                         </div>
-                        <p>{oldMods.length > 0 ? `${oldMods.length} already installed mods found` : appPath == "" ? "No path selected!" : "No mods found from selected directory!"}</p>
-                        <button onClick={handleInstall} disabled={appPath == "" ? true : false}>Install selected mods!</button>
+                        <p>{oldMods.length > 0 ? `${oldMods.length} already installed mods found` : appPath == "" ? "No path selected!" : gameStatus ? "No mods found from selected directory!" : "No game found from selected directory!"}</p>
+                        <button onClick={handleInstall} disabled={appPath == "" || gameStatus == false || installDisabledStatus ? true : false}>Install selected mods!</button>
                     </div>
                 </div>
             </div>

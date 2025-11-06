@@ -1,8 +1,18 @@
 use tauri::Manager;
+use zip_extensions::*;
+
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
+fn uncompress(uncompress_path: &str, dest: &str) {
+    let destn = std::path::Path::new(dest).to_path_buf();
+    let fname = std::path::Path::new(uncompress_path).to_path_buf();
+
+    println!("{}", dest);
+    println!("{}", uncompress_path);
+
+    let _extraction = zip_extract(&fname, &destn).unwrap();
+
+    println!("worked!");
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -22,7 +32,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_prevent_default::debug())
-        .invoke_handler(tauri::generate_handler![greet])
+        .invoke_handler(tauri::generate_handler![uncompress])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
